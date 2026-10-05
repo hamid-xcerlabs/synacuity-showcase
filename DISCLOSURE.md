@@ -63,7 +63,7 @@ Access to the private production repository is subject to applicable client, con
 
 ## Contact
 
-Hamid Raza  
+Hamid Reyes  
 AI Systems Engineer
 
 hamid@xcerlabs.com  
