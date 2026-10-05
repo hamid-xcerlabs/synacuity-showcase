@@ -145,24 +145,22 @@ These are guest voice signals at the MVP stage. The schema is designed so future
 
 ## Action state machine
 
-
+<pre>
 pending
   ai_draft_ready
     awaiting_approval
       approved          (manager approves AI draft)
       edited            (manager edits AI draft)
-      regenerated       (manager requests new AI draft)
+      regenerated       (manager requests a new AI draft)
       manager_written   (manager writes from scratch)
-        ai_audit        (all four paths go through audit)
+        ai_audit
           approved_final
             publishing
               published
               publish_failed
-
-
-Every response, regardless of origin, goes through AI audit before publish. Audit checks: overall score (0-100), brand fit, issue addressed, tone, empathy, accuracy, risk level, suggested improvement.
-
+</pre>
 ---
+Every response, regardless of origin, goes through AI audit before publish. Audit checks: overall score (0–100), brand fit, issue addressed, tone, empathy, accuracy, risk level, and suggested improvement.
 
 ## What this is not
 
