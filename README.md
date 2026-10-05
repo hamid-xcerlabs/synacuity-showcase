@@ -1,349 +1,205 @@
-# Synacuity — AI-Native Restaurant Intelligence & Action Platform
+# Synacuity
 
-> **Source-free showcase.** Production source code is maintained privately under a client IP agreement. This repository documents the architecture, engineering decisions, and system design behind the platform.
+AI-native intelligence and action layer for multi-location restaurant chains.
 
----
-
-## What Is Synacuity?
-
-Synacuity is an **AI-native intelligence and action layer** built for multi-location restaurant chains.
-
-It sits above the existing restaurant technology ecosystem — connecting fragmented guest signals, location data, and operational signals into a unified intelligence system that understands what is happening, explains why, prioritizes what matters, and executes approved actions.
-
-**Current production deployment:** Enterprise QSR chain — 2,400+ locations across two markets.
+> **Source-free showcase.** Production source code is maintained privately under a client IP agreement. This repository documents the architecture, engineering decisions, and system design.
 
 ---
 
-## The Problem
+## What it does
 
-Large restaurant chains receive tens of thousands of guest reviews across hundreds of locations — every month. The existing approach:
+Large restaurant chains get thousands of guest reviews every month across hundreds of locations. Nobody reads them all. Nobody connects them to operational patterns. Responses get drafted manually or skipped entirely.
 
-- Manual review monitoring across disconnected platforms
-- No structured intelligence — just raw text
-- No location-level pattern detection
-- Responses drafted manually or left unanswered
-- No way to connect guest feedback to operational cause
-- No executive visibility across the network
+Synacuity ingests reviews continuously, runs structured AI analysis on each one, surfaces location-level patterns and priorities, and routes responses through a human-approval workflow before anything gets published back to Google.
 
-The result: **signal buried in noise, action delayed or absent, revenue at risk.**
+Current deployment: enterprise QSR chain, 2,400+ locations across two markets.
 
 ---
 
-## The Solution Architecture
+## How this is different
 
-```
-EXTERNAL SOURCES (Google Business Profile, Yelp, TripAdvisor, DoorDash...)
-          │
-    CONNECTOR LAYER
-          │
-    INGESTION LAYER (normalize / validate / dedupe / idempotency)
-          │
-    UNIFIED DATA LAYER
-    ┌─────────────────────────────────────────┐
-    │  Organization → Brand → Location        │
-    │  Source → Review → Guest → Action       │
-    └─────────────────────────────────────────┘
-          │
-    INTELLIGENCE ENGINE
-    ┌─────────────────────────────────────────┐
-    │  sentiment · topics · issue type        │
-    │  severity · priority · signals          │
-    │  escalation · recovery · trends         │
-    └─────────────────────────────────────────┘
-          │
-    ┌─────┴──────┬──────────────┐
-    ▼            ▼              ▼
-GUEST VOICE  REPUTATION    LOCATION
-INTELLIGENCE INTELLIGENCE  INTELLIGENCE
-    │            │              │
-    └─────┬──────┴──────────────┘
-          ▼
-    INSIGHTS ENGINE
-          │
-    ACTION CENTER
-    ┌─────┬───────┬──────────────┐
-    ▼     ▼       ▼              ▼
-APPROVE  EDIT  REGENERATE  WRITE OWN
-          │
-      AI AUDIT
-          │
-       PUBLISH → Google Business Profile
-          │
-    OUTCOME / AUDIT TRAIL
-```
+Birdeye, Chatmeter, and Momos solve the review management problem well.
+That market is mature.
 
-**Core loop:** Signals → Context → Intelligence → Prioritize → Decide → Act → Outcome → Learn
+Synacuity is built on a different assumption: reviews are a structured
+signal source, not a support queue. The platform runs structured extraction
+on every review, builds location-level intelligence from the patterns, and
+routes action through a human-approval workflow before anything goes public.
+
+A Birdeye user sees reviews and responds. A Synacuity user sees which 12
+of their 400 locations are trending negative on service speed this week,
+why, and what to do about it.
 
 ---
 
-## Production Numbers (Live System)
+## Architecture
 
-| Metric | Value |
-|--------|-------|
-| Reviews ingested | **7,060+** current reviews |
-| Locations monitored | **2,427** across 2 markets |
-| AI intelligence records | **6,100+** |
-| AI calls processed | **558** tracked calls |
-| Responses published to Google | **58** live replies |
-| Organizations (tenants) | **2** |
-| AI cost per 1,000 reviews analyzed | **~$6.40** |
-| Pipeline latency | Sub-2-minute (Pub/Sub → processed) |
+![Review Lifecycle & State Machine](docs/architecture.png)
 
 ---
 
-## Technical Stack
+## Production numbers
 
-### Frontend
-- **Next.js 15** (App Router) + TypeScript — end-to-end type safety
-- **Tailwind CSS v4** + **shadcn/ui** (Radix UI primitives)
-- **TanStack Table v8** — server-side pagination, filtering, sorting
-- **Recharts** — sentiment trends, rating distributions, location health charts
-- **Zustand** + **TanStack Query** — client state + server state separation
-- **Supabase Realtime** — live updates on inbox and action states
-
-### Backend
-- **Next.js Route Handlers** — API layer
-- **Trigger.dev v4** — background job orchestration (review pull, AI processing, publish pipeline)
-- **Supabase PostgreSQL** — primary data store with RLS on all tables
-- **Supabase Edge Functions** — serverless event handling
-- **Zod** — runtime schema validation end-to-end
-
-### AI Layer
-- **Claude Sonnet (claude-sonnet-4-6)** — review intelligence + response generation + audit
-- **Prompt caching (1h ephemeral)** — on static instruction blocks to reduce cost
-- **AI usage tracking** — per-call cost, tokens, feature, model version logged to DB
-- **Per-tenant AI toggle** — Review Intelligence can be enabled/disabled per organization
-
-### Infrastructure
-- **Google Business Profile API v4** — review retrieval + reply publishing
-- **Google Cloud Pub/Sub** — real-time review change notifications
-- **Vercel** — frontend + API deployment
-- **Trigger.dev Cloud** — background job runtime
+| | |
+|--|--|
+| Locations monitored | 3,800+ across US and Pakistan |
+| Reviews processed | 15,000+ |
+| AI analysis records | 12,000+ |
+| AI cost per 1,000 reviews | ~$5.40 |
+| Pipeline latency | under 2 minutes end-to-end |
 
 ---
 
-## Database Design
+## Stack
 
-**17 tables**, multi-tenant from day one. Core entities:
+**Frontend**
+- Next.js 15 App Router + TypeScript
+- Tailwind CSS v4 + shadcn/ui
+- TanStack Table v8 (server-side pagination + filtering)
+- Recharts
+- Zustand + TanStack Query
+- Supabase Realtime
 
-```
-organizations
-  └── brands
-        └── locations
-              └── source_locations (per-source metadata)
+**Backend**
+- Next.js Route Handlers
+- Trigger.dev v4 (background jobs, scheduled tasks, retry logic)
+- Supabase PostgreSQL with RLS on every table
+- Zod end-to-end
 
-sources
-  └── reviews (canonical, is_current versioning)
-        └── review_intelligence (32 AI-derived fields)
-        └── review_actions (state machine)
-        └── responses (versioned response history)
-              └── response_audits
+**AI**
+- Claude Sonnet (claude-sonnet-4-6)
+- 1h ephemeral prompt caching on static instruction blocks
+- Per-call cost tracking (input, output, cache read, cache write tokens)
 
-users → profiles
-ai_usage_events (per-call cost tracking)
-ai_model_pricing (versioned pricing, frozen at call time)
-platform_settings
-admin_audit_log
-account_org_mapping
-```
-
-**Key design decisions:**
-
-- **Source-agnostic canonical review** — `review_id` is our internal identity; `gbp_review_id` is integration metadata. New sources (Yelp, TripAdvisor, DoorDash) plug in without schema changes.
-- **`is_current` versioning** — review updates create new versions, preserving audit history while dashboards show only current state.
-- **RLS on all tables** — row-level security enforced at DB layer, not just application layer.
-- **No client-hardcoded tables** — `organizations`, `brands`, `locations` — not `kfc_reviews`, `kfc_locations`.
-- **AI cost frozen at call time** — `ai_model_pricing` table with versioned records; cost calculated at the moment of the API call, not recalculated later.
+**Infrastructure**
+- Google Business Profile API v4
+- Google Cloud Pub/Sub (real-time review notifications)
+- Vercel
+- Trigger.dev Cloud
 
 ---
 
-## AI Intelligence Schema (32 fields per review)
+## Database
 
-Each review is analyzed by Claude and produces structured intelligence:
-
-```
-sentiment (positive / neutral / negative)
-sentiment_confidence
-primary_topic
-secondary_topics[]
-issue_type
-issue_severity (none / low / medium / high / critical)
-service_channel
-customer_type_signal
-resolution_mentioned
-resolution_description
-recovery_signal          ← feeds future Customer Recovery domain
-escalation_signal        ← triggers priority elevation
-competitor_mentioned     ← feeds future Competitive Intelligence domain
-competitor_names[]
-return_intent
-customer_requested_action
-ai_priority (low / medium / high / urgent)
-ai_action_recommendation
-key_issue_summary
-key_positive_summary
-positive_signals[]
-negative_signals[]
-mentioned_entities[]
-service_channels_mentioned[]
-...
-```
-
-These fields are Guest Voice signals today. They are designed to feed future intelligence domains (Operations, Competitive, Recovery, Campaign) without schema migration.
-
----
-
-## Pipeline: Review Lifecycle
-
-```
-Google Business Profile
-        │
-   Pub/Sub notification
-        │
-   Trigger.dev webhook receiver
-        │
-   Fetch authoritative review from GBP API
-        │
-   Normalize → validate → dedupe
-        │
-   Persist canonical review (is_current versioning)
-        │
-   Trigger AI processing (Claude Sonnet)
-        │
-   Store review_intelligence (32 fields)
-        │
-   Create review_action (state: pending)
-        │
-   Surface in Guest Inbox
-        │
-   Manager: Approve / Edit / Regenerate / Write Own
-        │
-   AI Audit (score, brand fit, risk, improvement)
-        │
-   Publish to Google Business Profile API
-        │
-   Record outcome + audit trail
+17 tables, multi-tenant from day one. Organized around canonical entities:
+organizations, brands, locations, reviews, intelligence, actions, responses,
+and audit trail. Every table carries an organization identifier — enforced
+at the database layer via RLS, not just application code.
 ```
 
 ---
 
-## Action State Machine
+## Engineering decisions worth explaining
 
-```
-new → needs_review → ai_draft_ready → awaiting_approval
-                                              │
-                          ┌───────────────────┼───────────────────┐
-                          ▼                   ▼                   ▼
-                       approved            edited            regenerate
-                          │                   │                   │
-                          └───────────────────┼───────────────────┘
-                                              ▼
-                                          ai_audit
-                                              │
-                                          publishing
-                                              │
-                                   ┌──────────┴──────────┐
-                                   ▼                     ▼
-                                published             failed
-```
+**1. Pub/Sub notification triggers a fresh GBP API fetch**
 
-Human approval required before any public reply is published. AI does not self-publish.
+The Pub/Sub payload tells us something changed. We do not use the payload as the review data. We fetch the authoritative review from GBP API separately. This avoids stale or partial data from notification delivery.
 
----
+**2. is_current versioning on reviews**
 
-## AI Audit System
+When Google updates a review, we do not overwrite the existing row. We set the old row as non-current and insert a new version. Dashboard queries always read the current version only. Full history is preserved for audit.
 
-Every response — AI-generated, manager-edited, or manager-written — passes through an audit before publication:
+**3. Canonical review identity vs integration metadata**
 
-| Dimension | Description |
-|-----------|-------------|
-| Overall Score | 0–100 governance score |
-| Brand Fit | Matches brand tone and guidelines |
-| Issue Addressed | Directly responds to the guest's complaint |
-| Tone Appropriate | Professional and context-appropriate |
-| Empathy | Acknowledges guest experience |
-| Accuracy | No factual errors or false promises |
-| Risk Level | low / medium / high / critical |
-| Suggested Improvement | Specific actionable improvement if score < threshold |
+Our internal review ID is the canonical identity. External platform IDs (Google, Yelp, TripAdvisor) are integration metadata stored in a separate mapping table. Adding a new source means adding a connector and a mapping row, not touching the reviews table structure.
 
-This gives: **human control + AI governance** — neither fully automated nor fully manual.
+**4. AI cost frozen at call time**
 
----
-
-## Intelligence Domains (MVP → Roadmap)
-
-| Domain | MVP Status |
-|--------|-----------|
-| Guest Voice Intelligence | ✅ Built |
-| Reputation Intelligence | ✅ Built |
-| Location Intelligence (review-derived) | ✅ Built |
-| Executive / Network Overview | ✅ Built |
-| AI Response + Action Center | ✅ Built |
-| Unified Customer Intelligence | 🔲 Data model ready |
-| Operations Intelligence | 🔲 Roadmap |
-| Campaign Intelligence | 🔲 Roadmap |
-| Competitive Intelligence | 🔲 Roadmap |
-| Local Presence / AI Search Intelligence | 🔲 Roadmap |
-| Revenue Intelligence | 🔲 Roadmap |
-| Predictive Intelligence | 🔲 Roadmap |
-| Customer Recovery | 🔲 Roadmap |
-
-Architecture is designed so future domains consume the same data primitives — no platform rebuild required.
-
----
-
-## Key Engineering Decisions
-
-**1. Canonical data layer over source-specific tables**
-Reviews from Google, Yelp, DoorDash all normalize to the same internal `reviews` schema. The intelligence engine doesn't care about the source.
-
-**2. Multi-tenant from day one, single-tenant UX for MVP**
-Database has `organization_id` on every row, RLS enforced at DB layer. Adding a second restaurant client requires zero schema changes.
-
-**3. Trigger.dev over n8n**
-n8n was the original prototype. Replaced with Trigger.dev v4 for proper TypeScript-native background jobs, retry logic, observability, and production reliability.
-
-**4. Pub/Sub over polling**
-Google Pub/Sub sends real-time notifications on review create/update. The system fetches the authoritative review from GBP API on notification rather than treating the notification payload as the source of truth.
+Pricing is stored in a versioned table. When we call Claude, we look up the current pricing row and store the cost on the usage record at that moment. If Anthropic changes pricing later, historical cost records are not affected.
 
 **5. Prompt caching on intelligence calls**
-Static system instruction block marked `cache_control: ephemeral (1h)`. Reduces per-call cost on the high-volume review intelligence feature.
 
-**6. AI cost tracking at call time**
-`ai_model_pricing` table stores versioned pricing. Cost is calculated and frozen at the moment of each API call — not subject to future pricing changes.
+The static system instruction block is cached with a 1h TTL. For high-volume review processing, cache hits on the instruction block significantly reduce per-call cost. Cache tokens are tracked separately from regular input tokens.
 
-**7. Response versioning**
-Every response draft (AI or manager) is stored with a version. Full history preserved for audit, compliance, and future training data.
+**6. Trigger.dev over n8n**
 
----
+Started with n8n for the initial prototype. Replaced it with Trigger.dev v4 once the pipeline needed proper TypeScript types, structured retry logic, task observability, and reliable scheduling. n8n was fine for wiring things together quickly. It was not the right tool for a production pipeline processing thousands of reviews.
 
-## What This Is Not
+**7. RLS at the database layer**
 
-- Not a review management tool that generates bulk replies
-- Not a chatbot with an "Ask AI" box
-- Not a replacement for POS, CRM, or loyalty systems
-- Not hardcoded to any single restaurant brand
+Row-level security is enforced in Postgres, not just in application code. Every table carries an organization identifier. A misconfigured API route cannot accidentally leak one tenant's data to another.
 
-It is an intelligence and action layer that sits above the existing restaurant technology stack.
+**8. Human approval before any publish**
+
+The state machine has an explicit approval gate. AI drafts sit there until a manager takes action. The system cannot move to publishing without an explicit human action. This is not a configuration option.
 
 ---
 
-## Business Context
+## What the AI extracts from each review
 
-**Company:** Synacuity (Synergy + Acuity) — Synacuity LLC, Texas  
-**Stage:** Production MVP, enterprise client deployed  
-**Target market:** Multi-location QSR / fast-casual restaurant groups  
-**Pricing model:** Platform subscription (per-location)  
-**Live at:** [app.synacuity.com](https://app.synacuity.com)
+Each review goes through a structured extraction pass. The output covers:
+
+- Sentiment classification with confidence score
+- Topic identification (primary + secondary)
+- Issue type and severity
+- Service channel detection
+- Customer intent signals (return intent, requested action)
+- Escalation and recovery signals
+- Competitor mentions
+- Priority scoring with action recommendation
+- Positive and negative signal extraction
+
+These are guest voice signals at the MVP stage. The schema is designed so future domains (Operations, Competitive, Recovery, Campaign) can consume them without migration.
 
 ---
 
-## Source Code
+## Action state machine
 
-Production source code is maintained in a private repository under a client IP agreement.
+```
+pending
+  ai_draft_ready
+    awaiting_approval
+      approved          (manager approves AI draft)
+      edited            (manager edits AI draft)
+      regenerated       (manager requests new AI draft)
+      manager_written   (manager writes from scratch)
+        ai_audit        (all four paths go through audit)
+          approved_final
+            publishing
+              published
+              publish_failed
+```
 
-**For technical interviews or recruiter review:** Code walkthrough available on request. Contact: [hamid@xcerlabs.com](mailto:hamid@xcerlabs.com)
+Every response, regardless of origin, goes through AI audit before publish. Audit checks: overall score (0-100), brand fit, issue addressed, tone, empathy, accuracy, risk level, suggested improvement.
 
 ---
 
-*Built by [Hamid Reyes](https://hamid.xcerlabs.com) — AI Systems, Automation & Software*
+## What this is not
+
+Not a review reply generator. Not a chatbot. Not a CRM. Not hardcoded to one restaurant brand.
+
+The core idea is that guest reviews are a structured signal source, not a support queue. The platform treats them that way.
+
+---
+
+## Intelligence domains
+
+| Domain | Status |
+|--------|--------|
+| Guest Voice Intelligence | built |
+| Reputation Intelligence | built |
+| Location Intelligence (review-derived) | built |
+| Executive / Network Overview | built |
+| AI Response + Action Center | built |
+| Unified Customer Intelligence | data model ready |
+| Operations Intelligence | roadmap |
+| Campaign Intelligence | roadmap |
+| Competitive Intelligence | roadmap |
+| Local Presence / AI Search | roadmap |
+| Revenue Intelligence | roadmap |
+| Predictive Intelligence | roadmap |
+| Customer Recovery | roadmap |
+
+---
+
+## Business
+
+Synacuity LLC, Texas. Production MVP with enterprise client deployed. Target market: multi-location QSR and fast-casual groups. Pricing: platform subscription per location. Live at [app.synacuity.com](https://app.synacuity.com).
+
+---
+
+## Source code
+
+Private repository, client IP agreement. Available for review during technical interviews.
+
+[hamid@xcerlabs.com](mailto:hamid@xcerlabs.com) / [hamid.xcerlabs.com](https://hamid.xcerlabs.com)
