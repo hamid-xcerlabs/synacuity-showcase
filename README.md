@@ -85,7 +85,7 @@ why, and what to do about it.
 organizations, brands, locations, reviews, intelligence, actions, responses,
 and audit trail. Every table carries an organization identifier — enforced
 at the database layer via RLS, not just application code.
-```
+
 
 ---
 
@@ -145,7 +145,7 @@ These are guest voice signals at the MVP stage. The schema is designed so future
 
 ## Action state machine
 
-```
+
 pending
   ai_draft_ready
     awaiting_approval
@@ -158,7 +158,7 @@ pending
             publishing
               published
               publish_failed
-```
+
 
 Every response, regardless of origin, goes through AI audit before publish. Audit checks: overall score (0-100), brand fit, issue addressed, tone, empathy, accuracy, risk level, suggested improvement.
 
