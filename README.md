@@ -12,7 +12,7 @@ Large restaurant chains get thousands of guest reviews every month across hundre
 
 Synacuity ingests reviews continuously, runs structured AI analysis on each one, surfaces location-level patterns and priorities, and routes responses through a human-approval workflow before anything gets published back to Google.
 
-Current deployment: enterprise QSR chain, 2,400+ locations across two markets.
+Current deployment: enterprise QSR chain, 3,800+ locations across two markets.
 
 ---
 
@@ -53,23 +53,29 @@ why, and what to do about it.
 ## Stack
 
 **Frontend**
-- Next.js 15 App Router + TypeScript
-- Tailwind CSS v4 + shadcn/ui
-- TanStack Table v8 (server-side pagination + filtering)
+- Next.js 16 App Router + TypeScript
+- Tailwind CSS v4 + shadcn/ui + Radix UI
+- TanStack Table v9 (server-side pagination + filtering)
 - Recharts
 - Zustand + TanStack Query
 - Supabase Realtime
+- Mapbox GL + react-map-gl (location map views)
+- Motion (animations)
+- Phosphor Icons + Lucide React
 
 **Backend**
 - Next.js Route Handlers
 - Trigger.dev v4 (background jobs, scheduled tasks, retry logic)
 - Supabase PostgreSQL with RLS on every table
-- Zod end-to-end
+- Zod v4 end-to-end
+- Upstash Redis + @upstash/ratelimit (AI endpoint rate limiting)
 
 **AI**
 - Claude Sonnet (claude-sonnet-4-6)
 - 1h ephemeral prompt caching on static instruction blocks
 - Per-call cost tracking (input, output, cache read, cache write tokens)
+- AI response refinement (managers can iterate on drafts via AI)
+- AI-powered email drafting for review escalations
 
 **Infrastructure**
 - Google Business Profile API v4
@@ -77,11 +83,14 @@ why, and what to do about it.
 - Vercel
 - Trigger.dev Cloud
 
+**Testing**
+- Vitest with coverage (unit tests across lib, AI prompts, GBP integration)
+
 ---
 
 ## Database
 
-17 tables, multi-tenant from day one. Organized around canonical entities:
+Multi-tenant from day one. Organized around canonical entities:
 organizations, brands, locations, reviews, intelligence, actions, responses,
 and audit trail. Every table carries an organization identifier — enforced
 at the database layer via RLS, not just application code.
@@ -122,6 +131,26 @@ Row-level security is enforced in Postgres, not just in application code. Every 
 **8. Human approval before any publish**
 
 The state machine has an explicit approval gate. AI drafts sit there until a manager takes action. The system cannot move to publishing without an explicit human action. This is not a configuration option.
+
+**9. AI response refinement as a separate call**
+
+Managers can iterate on AI-generated drafts via a refinement endpoint. The refinement call takes the current draft and a manager instruction, and returns a revised version. This is a separate AI call, not a regeneration of the original — it preserves the original draft and the manager's intent separately in the audit log.
+
+**10. Rate limiting on AI endpoints**
+
+All AI-triggering endpoints (generate response, refine response, email draft) are rate-limited at the application layer using Upstash Redis. Rate limits are per-user, not per-organization, so one heavy user cannot consume the AI budget for an entire tenant.
+
+**11. Admin panel separated from tenant dashboard**
+
+The platform admin panel is a completely separate route group from the tenant-facing dashboard. Admins can manage tenants, configure features per tenant, review audit logs, manage users, and set reply settings — none of this surface is exposed to tenant users. Authorization checks are enforced at the layout level before any admin page renders.
+
+**12. Per-tenant feature flags**
+
+Features are enabled or disabled per tenant through a dedicated feature flags system. The flag state is checked server-side on every relevant request. This allows rolling out new capabilities (email drafting, map views, etc.) to specific tenants before general availability.
+
+**13. Location repair as a background job**
+
+GBP location data occasionally arrives incomplete or malformed. A dedicated repair job (`repair-blank-locations`) runs on a schedule to detect and patch locations with missing data by re-fetching from the GBP API. This is separate from the main ingestion pipeline so repair retries do not block new review processing.
 
 ---
 
@@ -179,6 +208,8 @@ The core idea is that guest reviews are a structured signal source, not a suppor
 | Location Intelligence (review-derived) | built |
 | Executive / Network Overview | built |
 | AI Response + Action Center | built |
+| Location Map Intelligence | built |
+| Email Escalation Drafting | built |
 | Unified Customer Intelligence | data model ready |
 | Operations Intelligence | roadmap |
 | Campaign Intelligence | roadmap |
@@ -190,9 +221,25 @@ The core idea is that guest reviews are a structured signal source, not a suppor
 
 ---
 
+## Platform administration
+
+A separate admin panel gives the platform operator full control over the multi-tenant environment:
+
+- Tenant provisioning, configuration, and suspension
+- Per-tenant feature flag management
+- Per-tenant reply settings and email settings
+- Per-tenant guest source configuration
+- User management with activity tracking
+- Audit log with diff-level change history
+- Platform-wide settings
+
+Tenant users never see the admin surface. Authorization is enforced at the route group layout, not just individual pages.
+
+---
+
 ## Business
 
-Synacuity LLC, Texas. Production MVP with enterprise client deployed. Target market: multi-location QSR and fast-casual groups. Pricing: platform subscription per location. Live at [app.synacuity.com](https://app.synacuity.com).
+Synacuity LLC, Texas. Production with enterprise client deployed. Target market: multi-location QSR and fast-casual groups. Pricing: platform subscription per location. Live at [app.synacuity.com](https://app.synacuity.com).
 
 ---
 
