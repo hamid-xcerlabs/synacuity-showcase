@@ -12,7 +12,7 @@ Large restaurant chains get thousands of guest reviews every month across hundre
 
 Synacuity ingests reviews continuously, runs structured AI analysis on each one, surfaces location-level patterns and priorities, and routes responses through a human-approval workflow before anything gets published back to Google.
 
-Current deployment: enterprise QSR chain, 3,800+ locations across two markets.
+Current deployment: enterprise QSR chain, 3,000+ locations across two markets.
 
 ---
 
@@ -42,9 +42,9 @@ why, and what to do about it.
 
 | | |
 |--|--|
-| Locations monitored | 3,800+ across US and Pakistan |
+| Locations monitored | 3,000+ across US and Pakistan |
 | Reviews processed | 15,000+ |
-| AI analysis records | 12,000+ |
+| AI analysis records | 14,800+ |
 | AI cost per 1,000 reviews | ~$5.40 |
 | Pipeline latency | under 2 minutes end-to-end |
 
